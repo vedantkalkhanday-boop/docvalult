@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: blob: data:; connect-src 'self' file:; frame-src blob:; worker-src 'self'; object-src 'self' blob:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#0f766e">
+<title>Vedant's Doc Vault</title>
+<meta name="application-name" content="Vedant's Doc Vault">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- First run: create vault -->
+<section id="screen-setup" class="screen auth" hidden>
+  <div class="auth-card">
+    <img src="icons/icon.svg" alt="" class="auth-logo">
+    <h1>Create Vedant's Doc Vault</h1>
+    <p class="muted">Everything is encrypted on this device with your master password. Nothing is uploaded anywhere.</p>
+    <form id="setup-form" autocomplete="off">
+      <label>Master password<input type="password" id="setup-pw" minlength="8" required autocomplete="new-password"></label>
+      <label>Confirm password<input type="password" id="setup-pw2" minlength="8" required autocomplete="new-password"></label>
+      <p class="muted small">Tip: a few random words like <i>mango-river-tiger-42</i> are strong and easy to remember.</p>
+      <p class="warn">There is no "forgot password". If you lose it, your documents cannot be recovered.</p>
+      <button class="btn primary block" type="submit">Create vault</button>
+    </form>
+    <div class="divider"><span>or</span></div>
+    <button class="btn block" id="setup-restore" type="button">Restore from a backup file</button>
+  </div>
+</section>
+
+<!-- Lock screen -->
+<section id="screen-lock" class="screen auth" hidden>
+  <div class="auth-card">
+    <img src="icons/icon.svg" alt="" class="auth-logo">
+    <h1>Vedant's Doc Vault is locked</h1>
+    <form id="lock-form" autocomplete="off">
+      <label>Master password<input type="password" id="lock-pw" required autocomplete="current-password"></label>
+      <p class="error" id="lock-error" hidden>Wrong password.</p>
+      <button class="btn primary block" type="submit">Unlock</button>
+    </form>
+  </div>
+</section>
+
+<!-- Main -->
+<section id="screen-main" class="screen" hidden>
+  <header class="topbar">
+    <div class="brand"><img src="icons/icon.svg" alt=""><span>Vedant's Doc Vault</span></div>
+    <input type="search" id="search" placeholder="Search documents, numbers, tags…" aria-label="Search">
+    <div class="top-actions">
+      <button class="icon-btn" id="btn-settings" title="Settings &amp; backup" aria-label="Settings">⚙️</button>
+      <button class="icon-btn" id="btn-lock" title="Lock now" aria-label="Lock">🔒</button>
+    </div>
+  </header>
+  <div class="filters">
+    <div class="chips" id="chips"></div>
+    <select id="member-filter" aria-label="Filter by person"></select>
+  </div>
+  <div id="alert-bar" class="alert-bar" hidden></div>
+  <main id="grid" class="groups"></main>
+  <div id="empty" class="empty" hidden>
+    <div class="empty-icon">📂</div>
+    <h2>No documents yet</h2>
+    <p class="muted">Tap <b>+ Add</b> to photograph or upload your Aadhaar, PAN, certificates, bills…</p>
+  </div>
+  <button class="fab" id="btn-add">+ Add</button>
+</section>
+
+<!-- Add / edit document -->
+<dialog id="dlg-edit" class="sheet">
+  <form id="edit-form" method="dialog" autocomplete="off">
+    <header class="sheet-head">
+      <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+      <h2 id="edit-title">Add document</h2>
+      <button type="submit" class="btn primary small" id="edit-save">Save</button>
+    </header>
+    <div class="sheet-body">
+      <div class="attach-zone">
+        <div id="edit-files" class="attach-list"></div>
+        <div class="attach-buttons">
+          <label class="btn"><input type="file" id="in-camera" accept="image/*" capture="environment" hidden>📷 Take photo</label>
+          <label class="btn"><input type="file" id="in-files" accept="image/*,application/pdf" multiple hidden>📎 Add files</label>
+        </div>
+        <p class="muted small">Add front, back and every page. Images and PDFs are supported. On a PC you can also drag &amp; drop or paste.</p>
+      </div>
+      <div id="quick" class="quick"></div>
+      <label>Title *<input id="f-title" required maxlength="120" placeholder="e.g. Aadhaar Card"></label>
+      <div class="row">
+        <label>Category<input id="f-category" list="dl-categories" placeholder="Identity"></label>
+        <label>Belongs to<input id="f-member" list="dl-members" placeholder="Self"></label>
+      </div>
+      <label>Document number<input id="f-number" placeholder="e.g. XXXX XXXX 1234"></label>
+      <div class="row">
+        <label>Issue date<input type="date" id="f-issue"></label>
+        <label>Expiry date<input type="date" id="f-expiry"></label>
+      </div>
+      <label>Tags <span class="muted small">(comma separated)</span><input id="f-tags" placeholder="original, laminated, bank"></label>
+      <label>Notes<textarea id="f-notes" rows="3" placeholder="Where the physical copy is kept, etc."></textarea></label>
+      <label class="check"><input type="checkbox" id="f-fav"> ⭐ Mark as important</label>
+    </div>
+  </form>
+  <datalist id="dl-categories"></datalist>
+  <datalist id="dl-members"></datalist>
+</dialog>
+
+<!-- View document -->
+<dialog id="dlg-view" class="sheet">
+  <header class="sheet-head">
+    <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    <h2 id="view-title"></h2>
+    <button type="button" class="btn small" id="view-edit">Edit</button>
+  </header>
+  <div class="sheet-body">
+    <div id="view-files" class="view-files"></div>
+    <dl id="view-details" class="details"></dl>
+    <button type="button" class="btn danger block" id="view-delete">Delete document</button>
+  </div>
+</dialog>
+
+<!-- Full-screen image -->
+<dialog id="dlg-image" class="fullimg">
+  <div class="fullimg-bar">
+    <span id="img-name"></span>
+    <div>
+      <button type="button" class="btn small" id="img-prev" aria-label="Previous page">‹</button>
+      <button type="button" class="btn small" id="img-next" aria-label="Next page">›</button>
+      <button type="button" class="btn small" id="img-zoom">Zoom</button>
+      <button type="button" class="btn small" id="img-save">Save / Share</button>
+      <button type="button" class="btn small" data-close>Close</button>
+    </div>
+  </div>
+  <div class="fullimg-body" id="img-body"><img id="img-el" alt=""></div>
+</dialog>
+
+<!-- Settings -->
+<dialog id="dlg-settings" class="sheet">
+  <header class="sheet-head">
+    <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+    <h2>Settings &amp; backup</h2>
+    <span></span>
+  </header>
+  <div class="sheet-body">
+    <h3>Backup &amp; sync between devices</h3>
+    <p class="muted small">The backup file is encrypted with the master password used when it was created. Copy it to your other device with a USB cable, pen drive or any storage, then import it there.</p>
+    <div class="btn-row">
+      <button class="btn primary" id="btn-export">⬇️ Export backup</button>
+      <button class="btn" id="btn-import">⬆️ Import / merge backup</button>
+    </div>
+    <p class="muted small" id="last-backup"></p>
+
+    <h3>Security</h3>
+    <label>Auto-lock after
+      <select id="set-autolock">
+        <option value="1">1 minute</option>
+        <option value="3">3 minutes</option>
+        <option value="5">5 minutes</option>
+        <option value="15">15 minutes</option>
+        <option value="60">1 hour</option>
+      </select>
+    </label>
+    <label class="check"><input type="checkbox" id="set-lockhide"> Lock as soon as I switch away from the app</label>
+    <label class="check"><input type="checkbox" id="set-compress"> Shrink large photos to save space (recommended)</label>
+    <button class="btn" id="btn-chpw">Change master password</button>
+
+    <h3>Storage</h3>
+    <p class="small" id="storage-info">…</p>
+
+    <h3>Danger zone</h3>
+    <button class="btn danger" id="btn-wipe">Erase vault from this device</button>
+    <p class="muted small">Vedant's Doc Vault v1 · works fully offline · no tracking</p>
+  </div>
+</dialog>
+
+<!-- Generic prompt (password / confirm) -->
+<dialog id="dlg-prompt" class="modal">
+  <form id="prompt-form" method="dialog" autocomplete="off">
+    <h2 id="prompt-title"></h2>
+    <p id="prompt-msg" class="muted"></p>
+    <div id="prompt-fields"></div>
+    <p class="error" id="prompt-error" hidden></p>
+    <div class="btn-row end">
+      <button type="button" class="btn" id="prompt-cancel">Cancel</button>
+      <button type="submit" class="btn primary" id="prompt-ok">OK</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="in-backup" accept=".vault,application/json" hidden>
+<dialog id="busy" class="busy"><div class="spinner"></div><p id="busy-msg">Working…</p></dialog>
+<div id="toast" class="toast" popover="manual"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
